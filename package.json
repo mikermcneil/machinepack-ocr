@@ -7,10 +7,12 @@
   },
   "keywords": [
     "OCR",
+    "optical-character-recognition",
+    "tesseract",
     "machines",
     "machinepack"
   ],
-  "author": "",
+  "author": "Mike McNeil",
   "license": "MIT",
   "dependencies": {
     "machine": "^13.0.0-1",
