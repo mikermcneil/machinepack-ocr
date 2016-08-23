@@ -65,6 +65,8 @@ module.exports = {
   fn: function(inputs, exits) {
 
     var path = require('path');
+    var fs = require('fs');
+    var imageFilterInvert = require('image-filter-invert');
     var tesseract = require('node-tesseract');
 
     // Build Tesseract options
@@ -76,8 +78,23 @@ module.exports = {
       opts.l = inputs.language;
     }
 
+    // Resolve path to make sure it is absolute.
+    inputs.path = path.resolve(inputs.path);
+
+
+    // Load file in memory in order to invert it.
+    var binaryBitmap = fs.readFileSync(inputs.path);
+    var base64Str = new Buffer(binaryBitmap).toString('base64');
+    // Invert it.
+    var invertedBase64Str = imageFilterInvert({ data: base64Str });
+    // Write it back to disk temporarily.
+    var invertedBinaryBitmap = new Buffer(base64Str, 'base64');
+    var tmpPathForInvertedImg = path.basename(inputs.path)+'-tmp'+path.extname(inputs.path);
+    fs.writeFileSync(tmpPathForInvertedImg, bitmap);
+
+
     // Call `process` to recognize characters in the image.
-    tesseract.process(path.resolve(inputs.path), opts, function(err, text) {
+    tesseract.process(inputs.path, opts, function (err, text) {
       try {
         if (err) {
           if (err.stack.match('Failed loading language \'en\'')) {

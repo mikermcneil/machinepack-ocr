@@ -15,6 +15,7 @@
   "author": "Mike McNeil",
   "license": "MIT",
   "dependencies": {
+    "image-filter-invert": "0.0.4",
     "machine": "^13.0.0-1",
     "node-tesseract": "0.2.7"
   },
