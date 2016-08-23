@@ -62,75 +62,109 @@ module.exports = {
   },
 
 
+  // TO TEST:
+  // ```
+  // mp exec recognize --path='/Users/mikermcneil/Desktop/foo.png'
+  // ```
   fn: function(inputs, exits) {
 
     var path = require('path');
+    var os = require('os');
+    var LWIP = require('lwip');
     var tesseract = require('node-tesseract');
 
-    // Build Tesseract options
-    var opts = {};
-    if (inputs.tesseractBinPath) {
-      opts.binary = '/usr/local/bin/tesseract';
-    }
-    if (inputs.language) {
-      opts.l = inputs.language;
-    }
 
     // Resolve path to make sure it is absolute.
     inputs.path = path.resolve(inputs.path);
 
-
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    // TODO: tune OCR
-    // See:
-    // • https://mlichtenberg.wordpress.com/2015/11/04/tuning-tesseract-ocr/
-    // • https://github.com/tesseract-ocr/tesseract/wiki/Command-Line-Usage
-    // • https://github.com/tesseract-ocr/tesseract/wiki/ControlParams
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    // We can also try inverting/simplifying the image first.
-    //
-    // Probably the best thing is to use imagemagick.  But for posterity:
-    //
-    // • require('image-filter-invert') -- http://npmjs.com/package/image-filter-invert
-    //
-    // ```
-    // // Load file in memory in order to invert it.
-    // var binaryBitmap = fs.readFileSync(inputs.path);
-    // var base64Str = new Buffer(binaryBitmap).toString('base64');
-    // // Invert it.
-    // var invertedBase64Str = imageFilterInvert({ data: base64Str });
-    // // Write it back to disk temporarily.
-    // var invertedBinaryBitmap = new Buffer(base64Str, 'base64');
-    // var tmpPathForInvertedImg = path.basename(inputs.path)+'-tmp'+path.extname(inputs.path);
-    // fs.writeFileSync(tmpPathForInvertedImg, bitmap);
-    // ```
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-
-    // Call `process` to recognize characters in the image.
-    tesseract.process(inputs.path, opts, function (err, text) {
+    // Now preprocess the image.
+    // (we'll create a modified copy of the image on disk)
+    LWIP.open(inputs.path, function (err, image){
+      if (err) { return exits.error(err); }
       try {
-        if (err) {
-          if (err.stack.match('Failed loading language \'en\'')) {
-            return exits.languageNotFound(err);
-          }
-          else if (err.stack.match('tesseract: command not found')) {
-            return exits.tesseractNotFound(err);
-          }
-          else { return exits.error(err); }
-        }//</if :: err>
 
-        // --•
-        // Some text was recognized successfully!
-        return exits.success(text);
+        // Figure out the appropriate path to a directory where the package will
+        // be extracted after it is downloaded.  If no explicit `destination` path
+        // was specified, then use the path to a new subfolder within the operating
+        // system's `/tmp` directory.
+        var tmpPathForModifiedImg = path.resolve(os.tmpDir(), path.basename(inputs.path)+'-grayscale.tmp.jpg');
+        // console.log('tmpPathForModifiedImg',tmpPathForModifiedImg);
 
+
+        // Make grayscale version of image.
+        image.batch()
+        .saturate(-1) // https://github.com/EyalAr/lwip#saturate
+        .writeFile(tmpPathForModifiedImg, function (err){
+          try {
+            if (err) { return exits.error(err); }
+
+            // Build Tesseract options
+            var tesseractOpts = {};
+            if (inputs.tesseractBinPath) {
+              tesseractOpts.binary = '/usr/local/bin/tesseract';
+            }
+            if (inputs.language) {
+              tesseractOpts.l = inputs.language;
+            }
+
+            // Call `process` to recognize characters in the image.
+            tesseract.process(tmpPathForModifiedImg, tesseractOpts, function (err, text) {
+              try {
+                if (err) {
+                  if (err.stack.match('Failed loading language \'en\'')) {
+                    return exits.languageNotFound(err);
+                  }
+                  else if (err.stack.match('tesseract: command not found')) {
+                    return exits.tesseractNotFound(err);
+                  }
+                  else { return exits.error(err); }
+                }//</if :: err>
+
+                // --•
+                // Some text was recognized successfully!
+                return exits.success(text);
+
+              } catch (e) { return exits.error(e); }
+            });//</tesseract.process>
+          } catch (e) { return exits.error(e); }
+        });//</image.batch()>
       } catch (e) { return exits.error(e); }
-    });//</tesseract.process>
+    });//</LWIP.open()>
 
   }
 
 
 };
+
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// TODO: tune OCR
+// See:
+// • https://mlichtenberg.wordpress.com/2015/11/04/tuning-tesseract-ocr/
+// • https://github.com/tesseract-ocr/tesseract/wiki/Command-Line-Usage
+// • https://github.com/tesseract-ocr/tesseract/wiki/ControlParams
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// UPDATE: see https://github.com/EyalAr/lwip
+//
+// could also use imagemagick.
+//
+// Finally, for posterity:
+//
+// • require('image-filter-invert') -- http://npmjs.com/package/image-filter-invert
+//
+// ```
+// // Load file in memory in order to invert it.
+// var binaryBitmap = fs.readFileSync(inputs.path);
+// var base64Str = new Buffer(binaryBitmap).toString('base64');
+// // Invert it.
+// var invertedBase64Str = imageFilterInvert({ data: base64Str });
+// // Write it back to disk temporarily.
+// var invertedBinaryBitmap = new Buffer(base64Str, 'base64');
+// var tmpPathForInvertedImg = path.basename(inputs.path)+'-tmp'+path.extname(inputs.path);
+// fs.writeFileSync(tmpPathForInvertedImg, bitmap);
+// ```
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
