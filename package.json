@@ -13,7 +13,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "machine": "^13.0.0-1"
+    "machine": "^13.0.0-1",
+    "node-tesseract": "0.2.7"
   },
   "devDependencies": {
     "test-machinepack-mocha": "^2.1.5"
@@ -21,6 +22,8 @@
   "machinepack": {
     "friendlyName": "OCR",
     "machineDir": "machines/",
-    "machines": []
+    "machines": [
+      "recognize"
+    ]
   }
 }

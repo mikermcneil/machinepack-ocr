@@ -8,12 +8,44 @@
 
 Recognize text in images using OCR (optical character recognition) techniques.
 
+> Based on [node-tesseract](https://nodei.co/npm/node-tesseract/).
+
 
 ## Installation &nbsp; [![NPM version](https://badge.fury.io/js/machinepack-ocr.svg)](http://badge.fury.io/js/machinepack-ocr) [![Build Status](https://travis-ci.org/mikermcneil/machinepack-ocr.png?branch=master)](https://travis-ci.org/mikermcneil/machinepack-ocr)
+
+This package has a hard dependency on [Tesseract](https://github.com/tesseract-ocr/tesseract).  You must have Tesseract installed on your laptop/server to use it.
+
+
+#### Installing Tesseract
+
+For Homebrew users, installing Tesseract is quick and easy:
+
+```sh
+brew install tesseract --with-all-languages
+```
+
+You can find installation instructions for various platforms on [the Tesseract project site](https://github.com/tesseract-ocr/tesseract).
+
+> ##### Tesseract Version
+> This [probably](https://nodei.co/npm/node-tesseract/) works with any version of Tesseract v3.01 or higher, but I have only tested extensively with:
+>
+>```
+>machinepack-ocr: ∑ tesseract -v
+>tesseract 3.04.01
+> leptonica-1.73
+>  libjpeg 8d : libpng 1.6.24 : libtiff 4.0.6 : zlib 1.2.5
+>```
+
+
+#### Installing this machinepack
+
+Now you can install the machinepack in your project:
 
 ```sh
 $ npm install machinepack-ocr
 ```
+
+
 
 ## Usage
 
