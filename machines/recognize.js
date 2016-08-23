@@ -88,12 +88,19 @@ module.exports = {
         // was specified, then use the path to a new subfolder within the operating
         // system's `/tmp` directory.
         var tmpPathForModifiedImg = path.resolve(os.tmpDir(), path.basename(inputs.path)+'-grayscale.tmp.jpg');
+
+        // DEBUG
+        // --------------------------------------------------------------------------------------------------------------------
+        // var tmpPathForModifiedImg = path.resolve('/Users/mikermcneil/Desktop', path.basename(inputs.path)+'-grayscale.tmp.jpg');
         // console.log('tmpPathForModifiedImg',tmpPathForModifiedImg);
+        // --------------------------------------------------------------------------------------------------------------------
 
 
         // Make grayscale version of image.
         image.batch()
-        .saturate(-1) // https://github.com/EyalAr/lwip#saturate
+        .saturate(-1) // https://github.com/EyalAr/lwip#saturate (<< Desaturating definitely improves recog, at least somewhat)
+        // .darken(0.2) // https://github.com/EyalAr/lwip#darken (<< Darkening doesn't seem to make a difference.)
+        // .sharpen(0.2) // https://github.com/EyalAr/lwip#sharpen (<< Sharpening MIGHT actually hurt recog a bit..)
         .writeFile(tmpPathForModifiedImg, function (err){
           try {
             if (err) { return exits.error(err); }
