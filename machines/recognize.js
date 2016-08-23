@@ -65,8 +65,6 @@ module.exports = {
   fn: function(inputs, exits) {
 
     var path = require('path');
-    var fs = require('fs');
-    var imageFilterInvert = require('image-filter-invert');
     var tesseract = require('node-tesseract');
 
     // Build Tesseract options
@@ -82,15 +80,34 @@ module.exports = {
     inputs.path = path.resolve(inputs.path);
 
 
-    // Load file in memory in order to invert it.
-    var binaryBitmap = fs.readFileSync(inputs.path);
-    var base64Str = new Buffer(binaryBitmap).toString('base64');
-    // Invert it.
-    var invertedBase64Str = imageFilterInvert({ data: base64Str });
-    // Write it back to disk temporarily.
-    var invertedBinaryBitmap = new Buffer(base64Str, 'base64');
-    var tmpPathForInvertedImg = path.basename(inputs.path)+'-tmp'+path.extname(inputs.path);
-    fs.writeFileSync(tmpPathForInvertedImg, bitmap);
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // TODO: tune OCR
+    // See:
+    // • https://mlichtenberg.wordpress.com/2015/11/04/tuning-tesseract-ocr/
+    // • https://github.com/tesseract-ocr/tesseract/wiki/Command-Line-Usage
+    // • https://github.com/tesseract-ocr/tesseract/wiki/ControlParams
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // We can also try inverting/simplifying the image first.
+    //
+    // Probably the best thing is to use imagemagick.  But for posterity:
+    //
+    // • require('image-filter-invert') -- http://npmjs.com/package/image-filter-invert
+    //
+    // ```
+    // // Load file in memory in order to invert it.
+    // var binaryBitmap = fs.readFileSync(inputs.path);
+    // var base64Str = new Buffer(binaryBitmap).toString('base64');
+    // // Invert it.
+    // var invertedBase64Str = imageFilterInvert({ data: base64Str });
+    // // Write it back to disk temporarily.
+    // var invertedBinaryBitmap = new Buffer(base64Str, 'base64');
+    // var tmpPathForInvertedImg = path.basename(inputs.path)+'-tmp'+path.extname(inputs.path);
+    // fs.writeFileSync(tmpPathForInvertedImg, bitmap);
+    // ```
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
     // Call `process` to recognize characters in the image.
