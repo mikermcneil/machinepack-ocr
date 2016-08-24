@@ -1,6 +1,6 @@
 {
   "name": "machinepack-ocr",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Recognize text in images using OCR (optical character recognition) techniques.",
   "scripts": {
     "test": "node ./node_modules/test-machinepack-mocha/bin/testmachinepack-mocha.js"
