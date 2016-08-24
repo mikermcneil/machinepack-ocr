@@ -22,6 +22,18 @@ module.exports = {
       extendedDescription: 'If a relative path is specified, it will be resolved from the current working directory.',
     },
 
+    psm: {
+      example: 6,
+      description: 'The Tesseract PSM strategy to use.',
+      moreInfoUrl: 'http://manpages.ubuntu.com/manpages/precise/man1/tesseract.1.html'
+    },
+
+    convertToGrayscale: {
+      example: false,
+      defaultsTo: false,
+      description: 'Whether the image should be converted to grayscale before performing analysis.'
+    },
+
     language: {
       example: 'eng',
       description: 'The Tesseract language identifier of a specific language pack to use during character recognition.',
@@ -77,66 +89,80 @@ module.exports = {
     // Resolve path to make sure it is absolute.
     inputs.path = path.resolve(inputs.path);
 
-    // Now preprocess the image.
-    // (we'll create a modified copy of the image on disk)
-    LWIP.open(inputs.path, function (err, image){
-      if (err) { return exits.error(err); }
-      try {
 
-        // Figure out the appropriate path to a directory where the package will
-        // be extracted after it is downloaded.  If no explicit `destination` path
-        // was specified, then use the path to a new subfolder within the operating
-        // system's `/tmp` directory.
-        var tmpPathForModifiedImg = path.resolve(os.tmpDir(), path.basename(inputs.path)+'-grayscale.tmp.jpg');
+    // If `convertToGrayscale` was enabled, do that first.
+    (function _asyncIf(done){
 
-        // DEBUG
-        // --------------------------------------------------------------------------------------------------------------------
-        // var tmpPathForModifiedImg = path.resolve('/Users/mikermcneil/Desktop', path.basename(inputs.path)+'-grayscale.tmp.jpg');
-        // console.log('tmpPathForModifiedImg',tmpPathForModifiedImg);
-        // --------------------------------------------------------------------------------------------------------------------
+      if (!inputs.convertToGrayscale) { return done(undefined, inputs.path); }
 
+      // --•
+      // Otherwise, we'll preprocess the image.
+      // (we'll create a modified copy of the image on disk)
+      LWIP.open(inputs.path, function (err, image){
+        if (err) { return done(err); }
+        try {
 
-        // Make grayscale version of image.
-        image.batch()
-        .saturate(-1) // https://github.com/EyalAr/lwip#saturate (<< Desaturating definitely improves recog, at least somewhat)
-        // .darken(0.2) // https://github.com/EyalAr/lwip#darken (<< Darkening doesn't seem to make a difference.)
-        // .sharpen(0.2) // https://github.com/EyalAr/lwip#sharpen (<< Sharpening MIGHT actually hurt recog a bit..)
-        .writeFile(tmpPathForModifiedImg, function (err){
-          try {
-            if (err) { return exits.error(err); }
+          // Figure out the appropriate path to a directory where the package will
+          // be extracted after it is downloaded.  If no explicit `destination` path
+          // was specified, then use the path to a new subfolder within the operating
+          // system's `/tmp` directory.
+          var tmpPathForModifiedImg = path.resolve(os.tmpDir(), path.basename(inputs.path)+'-grayscale.tmp.jpg');
 
-            // Build Tesseract options
-            var tesseractOpts = {};
-            if (inputs.tesseractBinPath) {
-              tesseractOpts.binary = '/usr/local/bin/tesseract';
+          // DEBUG
+          // --------------------------------------------------------------------------------------------------------------------
+          // var tmpPathForModifiedImg = path.resolve('/Users/mikermcneil/Desktop', path.basename(inputs.path)+'-grayscale.tmp.jpg');
+          // console.log('tmpPathForModifiedImg',tmpPathForModifiedImg);
+          // --------------------------------------------------------------------------------------------------------------------
+
+          // Make grayscale version of image.
+          image.batch()
+          .saturate(-1) // https://github.com/EyalAr/lwip#saturate (<< Desaturating definitely improves recog, at least somewhat)
+          // .darken(0.2) // https://github.com/EyalAr/lwip#darken (<< Darkening doesn't seem to make a difference.)
+          // .sharpen(0.2) // https://github.com/EyalAr/lwip#sharpen (<< Sharpening MIGHT actually hurt recog a bit..)
+          .writeFile(tmpPathForModifiedImg, function (err){
+            try {
+              if (err) { return done(err); }
+
+              return done(undefined, tmpPathForModifiedImg);
+
+            } catch (e) { return done(e); }
+          });//</image.batch()>
+        } catch (e) { return done(e); }
+      });//</LWIP.open()>
+
+    })(function afterwards(err, pathOfImgToAnalyze) {
+      // Build Tesseract options
+      var tesseractOpts = {};
+      if (inputs.tesseractBinPath) {
+        tesseractOpts.binary = '/usr/local/bin/tesseract';
+      }
+      if (inputs.language) {
+        tesseractOpts.l = inputs.language;
+      }
+      if (inputs.psm) {
+        tesseractOpts.psm = inputs.psm;
+      }
+
+      // Call `process` to recognize characters in the image.
+      tesseract.process(pathOfImgToAnalyze, tesseractOpts, function (err, text) {
+        try {
+          if (err) {
+            if (err.stack.match('Failed loading language \'en\'')) {
+              return exits.languageNotFound(err);
             }
-            if (inputs.language) {
-              tesseractOpts.l = inputs.language;
+            else if (err.stack.match('tesseract: command not found')) {
+              return exits.tesseractNotFound(err);
             }
+            else { return exits.error(err); }
+          }//</if :: err>
 
-            // Call `process` to recognize characters in the image.
-            tesseract.process(tmpPathForModifiedImg, tesseractOpts, function (err, text) {
-              try {
-                if (err) {
-                  if (err.stack.match('Failed loading language \'en\'')) {
-                    return exits.languageNotFound(err);
-                  }
-                  else if (err.stack.match('tesseract: command not found')) {
-                    return exits.tesseractNotFound(err);
-                  }
-                  else { return exits.error(err); }
-                }//</if :: err>
+          // --•
+          // Some text was recognized successfully!
+          return exits.success(text);
 
-                // --•
-                // Some text was recognized successfully!
-                return exits.success(text);
-
-              } catch (e) { return exits.error(e); }
-            });//</tesseract.process>
-          } catch (e) { return exits.error(e); }
-        });//</image.batch()>
-      } catch (e) { return exits.error(e); }
-    });//</LWIP.open()>
+        } catch (e) { return exits.error(e); }
+      });//</tesseract.process>
+    });//</self-calling function :: get path of image to analyze>
 
   }
 
